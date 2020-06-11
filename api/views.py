@@ -12,9 +12,15 @@ from .serializers import PostSerializer, CommentSerializer, FollowSerializer, Gr
 from .permissions import IsOwnerOrReadOnly
 
 class PostViewSet(ModelViewSet):
-    queryset = Post.objects.all()
     serializer_class = PostSerializer
     permission_classes = [IsOwnerOrReadOnly]
+
+    def get_queryset(self):
+        queryset = Post.objects.all()
+        group = self.request.query_params.get('group', None)
+        if group:
+            queryset = queryset.filter(group=group)
+        return queryset
 
     def perform_create(self, serializer):
         return serializer.save(author=self.request.user)
@@ -39,12 +45,19 @@ class FollowViewSet(ModelViewSet):
     permission_classes = [IsOwnerOrReadOnly]
     filter_backends = [SearchFilter]
     search_fields = ['=following__username', '=user__username']
-
-    def perform_create(self, serializer):
+    
+    def create(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        
+        user = self.request.user
         following = User.objects.get(username=self.request.data.get('following'))
-        # if following == self.request.user:
-        #     return ValidationError("User can't follow himself")
-        return serializer.save(user=self.request.user, following=following)
+        if following == user or Follow.objects.filter(user=user, following=following).exists():
+            return Response(status=status.HTTP_400_BAD_REQUEST)
+        serializer.save(user=self.request.user, following=following)
+
+        headers = self.get_success_headers(serializer.data)
+        return Response(serializer.data, status=status.HTTP_201_CREATED, headers=headers)
 
 class GroupViewSet(ModelViewSet):
     http_method_names = ['get', 'post']
