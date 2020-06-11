@@ -30,13 +30,14 @@ class CommentViewSet(ModelViewSet):
     serializer_class = CommentSerializer
     permission_classes = [IsOwnerOrReadOnly]
 
+    def get_post(self):
+        return get_object_or_404(Post, pk=self.kwargs.get('post_id'))
+
     def get_queryset(self):
-        post = get_object_or_404(Post, pk=self.kwargs.get('post_id'))
-        queryset = Comment.objects.filter(post=post)
-        return queryset
+        return Comment.objects.filter(post=self.get_post())
 
     def perform_create(self, serializer):
-        return serializer.save(author=self.request.user)
+        return serializer.save(author=self.request.user, post=self.get_post())
 
 class FollowViewSet(ModelViewSet):
     http_method_names = ['get', 'post']

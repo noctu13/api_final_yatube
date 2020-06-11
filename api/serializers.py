@@ -17,6 +17,12 @@ class CommentSerializer(serializers.ModelSerializer):
     class Meta:
         fields = ('id', 'author', 'post', 'text', 'created')
         model = Comment
+        extra_kwargs = {
+            'post': {
+                'required': False,
+                #'write_only': True
+            }
+        }
 
 
 class FollowSerializer(serializers.ModelSerializer):
